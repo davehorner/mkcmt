@@ -1,6 +1,16 @@
 
 # Rust GenAI-Powered Conventional Commit Generator
 
+<a href="https://crates.io/crates/mkcmt" rel="nofollow noopener noreferrer">
+  <img src="https://img.shields.io/crates/v/mkcmt.svg" alt="Crates.io">
+</a>
+
+<!-- Version notice -->
+<p style="font-style: italic; color: #ccc; margin-top: 0.5em;">
+  You are reading documentation version <span id="doc-version" style="color: white;">0.2.0</span>.
+  If this does not match the version displayed above, then you're not reading the latest documentation!
+</p>
+
 ## Overview
 
 This tool generates concise or lengthy, Conventional Commit-compatible commit messages using GPT-4o-mini (ChatGPT), based on your Git diff outputs. It intelligently handles both staged and unstaged changes, progressively refining commit suggestions based on user feedback, and can copy the final commit message directly to your clipboard.
@@ -104,3 +114,12 @@ Commit message copied to clipboard.
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+<a href="https://crates.io/crates/mkcmt" rel="nofollow noopener noreferrer">
+  <img src="https://img.shields.io/crates/v/mkcmt.svg" alt="Crates.io">
+</a>
+
+<!-- Version notice -->
+<p style="font-style: italic; color: #ccc; margin-top: 0.5em;">
+  You are reading documentation version <span id="doc-version" style="color: white;">0.2.0</span>.
+  If this does not match the version displayed above, then you're not reading the latest documentation!
+</p>

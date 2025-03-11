@@ -1,6 +1,6 @@
 [package]
 name = "mkcmt"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["David Horner"]
 description = "mkcmt is make commit.  Conventional Commit Generator"
 readme = "README.md"
@@ -14,9 +14,8 @@ edition = "2024"
 
 
 [dependencies]
-clipboard = { version = "0.5.0", optional = true }
 genai = { version = "0.1.23", optional = true }
-arboard = { version = "2.0", optional = true } 
+arboard = { version = "3.4.1", optional = true } 
 
 [dependencies.tokio_plain]
 package = "tokio"
@@ -33,12 +32,12 @@ features = ["rt", "macros"]
 
 
 [features]
-default = ["uses_clipboard", "uses_genai", "uses_tokio_rt"]
-uses_clipboard = ["clipboard"]
+default = ["uses_arboard", "uses_genai", "uses_tokio_rt"]
 uses_genai = ["genai"]
 uses_arboard = ["arboard"]
 uses_tokio_plain = ["tokio_plain"]
 uses_tokio_rt = ["tokio_rt"]
+arboard = ["dep:arboard"]
 
 # clipboard will be removed in next release.
 # + cargo audit
