@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 // Prevent both Tokio implementations from being enabled at the same time.
 #[cfg(all(feature = "uses_tokio_rt", feature = "uses_tokio_plain"))]
 compile_error!(
