@@ -1,0 +1,377 @@
+this is the program that was written so that I could get all of the code to you.  This program operates at the Rust crate level and allows me to tunnel the data to the GPT so that we can discuss the relevant files and configuration.
+#!/usr/bin/env python3
+"""
+crate_recreator.py
+
+This script generates a self-contained Python script that, when executed, recreates 
+the directory structure and file contents of a Rust crate. The process is as follows:
+
+1. Starting from a specified source folder (or using --src-only to restrict to its "src" subfolder),
+   the script searches upward for a Cargo.toml file. When found, it uses the folder containing 
+   Cargo.toml as the crate root.
+2. It extracts the crate name from the Cargo.toml’s [package] section. If not found, it falls back 
+   to using the basename of the originally provided folder.
+3. The script then gathers all files recursively from the determined root (or root/src if --src-only),
+   ignoring directories like ".git", "target", ".aipack", ".github" and files such as ".gitignore", 
+   "Cargo.lock", or any file whose name starts with "LICENSE" or "NOTICE", as well as binary files 
+   (e.g., .webp, .jpg, .jpeg, .png).
+4. It generates a self-contained Python script that will recreate the crate’s structure and embedded file contents.
+   In the generated script each embedded file is annotated with a comment showing its relative path.
+5. The generated file is named in the format: <crate_name>_recreate_YYMMDD_HHMM.py.
+6. The generated script is set as executable and its content is copied to the clipboard.
+   (This copied content is the generated recreate script—not this crate recreator.)
+
+Usage:
+    python crate_recreator.py <source_folder> [--src-only]
+"""
+
+import os
+import sys
+import argparse
+import subprocess
+import stat
+from datetime import datetime
+import re
+
+def gather_files(source_folder):
+    """
+    Walk the source folder recursively and return a dictionary mapping
+    relative file paths to their contents.
+
+    Excludes directories named "target" (case-insensitive), ".git", ".aipack", ".github",
+    and files such as ".gitignore", "Cargo.lock", or any file whose name starts with 
+    "LICENSE" or "NOTICE". Also ignores binary files with extensions like .webp, .jpg, .jpeg, .png.
+
+    Provides detailed tracing for debugging.
+    """
+    ignore_dirs = {".git", ".aipack", ".github"}
+    ignore_files = {".gitignore", "Cargo.lock"}
+    binary_extensions = (".webp", ".jpg", ".jpeg", ".png")
+    files_dict = {}
+    print(f"[TRACE] Starting to traverse source folder: {source_folder}")
+    for root, dirs, files in os.walk(source_folder):
+        # Exclude specified directories.
+        original_dirs = dirs.copy()
+        dirs[:] = [d for d in dirs if d.lower() != "target" and d not in ignore_dirs]
+        for excluded in set(original_dirs) - set(dirs):
+            print(f"[TRACE] Excluding directory: {excluded}")
+        # Process each file in the current directory.
+        for file in files:
+            # Check ignore conditions for file names.
+            if file in ignore_files  or file.endswith(('.bak', '~')):
+                print(f"[TRACE] Ignoring file: {file}")
+                continue
+            if file.startswith("LICENSE") or file.startswith("NOTICE"):
+                print(f"[TRACE] Ignoring file (starts with LICENSE or NOTICE): {file}")
+                continue
+            lower_file = file.lower()
+            if lower_file.endswith(binary_extensions):
+                print(f"[TRACE] Ignoring binary file: {file}")
+                continue
+
+            full_path = os.path.join(root, file)
+            # Compute relative path based on the source folder.
+            rel_path = os.path.relpath(full_path, source_folder)
+            print(f"[TRACE] Processing file: {full_path} as {rel_path}")
+            try:
+                with open(full_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception as e:
+                print(f"[WARNING] Skipping file {full_path} due to read error: {e}")
+                continue
+            files_dict[rel_path] = content
+    print(f"[TRACE] Completed traversing. Total files gathered: {len(files_dict)}")
+    return files_dict
+
+def generate_script(files_dict, crate_name):
+    """
+    Generate a self-contained Python script as a string.
+    When run, the generated script creates a folder (named after the crate)
+    and reconstructs all files with their original contents.
+
+    This generated script also includes:
+      - A function to copy its own source code to the clipboard.
+      - Detailed tracing messages to follow its execution.
+
+    Each embedded file is annotated with a trailing comment indicating its relative path.
+    
+    Returns:
+        A string containing the full source code of the generated script.
+    """
+    lines = []
+    lines.append("#!/usr/bin/env python3")
+    lines.append("import os")
+    lines.append("import sys")
+    lines.append("import subprocess")
+    lines.append("")
+    lines.append("def copy_to_clipboard(text):")
+    lines.append("    \"\"\"")
+    lines.append("    Copies the given text to the system clipboard.")
+    lines.append("    Uses 'clip' on Windows and 'pbcopy' on macOS.")
+    lines.append("    \"\"\"")
+    lines.append("    try:")
+    lines.append("        if sys.platform.startswith('win'):")
+    lines.append("            proc = subprocess.Popen(['clip'], stdin=subprocess.PIPE, close_fds=True)")
+    lines.append("            proc.communicate(input=text.encode('utf-8'))")
+    lines.append("        elif sys.platform == 'darwin':")
+    lines.append("            proc = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE, close_fds=True)")
+    lines.append("            proc.communicate(input=text.encode('utf-8'))")
+    lines.append("        else:")
+    lines.append("            print('[TRACE] Clipboard copy not supported on this platform.')")
+    lines.append("    except Exception as e:")
+    lines.append("        print(f'[ERROR] Failed to copy to clipboard: {e}')")
+    lines.append("")
+    lines.append("def copy_self_to_clipboard():")
+    lines.append("    \"\"\"")
+    lines.append("    Reads its own source file and copies the content to the clipboard.")
+    lines.append("    Provides detailed tracing for debugging.")
+    lines.append("    \"\"\"")
+    lines.append("    try:")
+    lines.append("        with open(__file__, 'r', encoding='utf-8') as f:")
+    lines.append("            content = f.read()")
+    lines.append("        copy_to_clipboard(content)")
+    lines.append("        print('[TRACE] The script has been copied to the clipboard.')")
+    lines.append("    except Exception as e:")
+    lines.append("        print(f'[ERROR] Failed to copy self to clipboard: {e}')")
+    lines.append("")
+    lines.append("def create_crate():")
+    lines.append("    \"\"\"")
+    lines.append("    Recreates the directory structure and files for the crate.")
+    lines.append("    Provides detailed tracing for each step.")
+    lines.append("    \"\"\"")
+    lines.append(f"    base_folder = os.path.join(os.getcwd(), '{crate_name}')")
+    lines.append("    print(f'[TRACE] Creating base folder: {base_folder}')")
+    lines.append("    os.makedirs(base_folder, exist_ok=True)")
+    lines.append("    files = {")
+    # Embed each file's content along with a comment indicating its relative path.
+    for path, content in files_dict.items():
+        lines.append(f"        {repr(path)}: {repr(content)},  # File: {path}")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    for relative_path, content in files.items():")
+    lines.append("        full_path = os.path.join(base_folder, relative_path)")
+    lines.append("        directory = os.path.dirname(full_path)")
+    lines.append("        if not os.path.exists(directory):")
+    lines.append("            os.makedirs(directory, exist_ok=True)")
+    lines.append("            print(f'[TRACE] Created directory: {directory}')")
+    lines.append("        with open(full_path, 'w', encoding='utf-8') as f:")
+    lines.append("            f.write(content)")
+    lines.append("        print(f'[TRACE] Created file: {full_path}')")
+    lines.append("")
+    lines.append("if __name__ == '__main__':")
+    lines.append("    create_crate()")
+    lines.append("    # Uncomment the next line to enable self-copy functionality.")
+    lines.append("    # copy_self_to_clipboard()")
+    lines.append("    print('[TRACE] Crate creation complete.')")
+    
+    return "\n".join(lines)
+
+def copy_to_clipboard(text):
+    """
+    Copies the given text to the system clipboard.
+    Uses 'clip' on Windows and 'pbcopy' on macOS.
+    Provides tracing information.
+    """
+    try:
+        if sys.platform.startswith("win"):
+            print("[TRACE] Using 'clip' for clipboard copy on Windows.")
+            proc = subprocess.Popen(["clip"], stdin=subprocess.PIPE, close_fds=True)
+            proc.communicate(input=text.encode("utf-8"))
+        elif sys.platform == "darwin":
+            print("[TRACE] Using 'pbcopy' for clipboard copy on macOS.")
+            proc = subprocess.Popen(["pbcopy"], stdin=subprocess.PIPE, close_fds=True)
+            proc.communicate(input=text.encode("utf-8"))
+        else:
+            print("[TRACE] Clipboard copy not supported on this platform.")
+    except Exception as e:
+        print(f"[ERROR] Failed to copy to clipboard: {e}")
+
+def find_cargo_toml(start_dir):
+    """
+    Starting from start_dir, search upward for a Cargo.toml file.
+    Returns the path to Cargo.toml if found, otherwise None.
+    """
+    current_dir = start_dir
+    while True:
+        candidate = os.path.join(current_dir, "Cargo.toml")
+        if os.path.exists(candidate):
+            print(f"[TRACE] Found Cargo.toml at: {candidate}")
+            return candidate
+        parent = os.path.dirname(current_dir)
+        if parent == current_dir:  # Reached root directory
+            break
+        current_dir = parent
+    print("[TRACE] No Cargo.toml found in the directory hierarchy.")
+    return None
+
+def get_crate_name_from_cargo_toml(cargo_toml_path):
+    """
+    Parse the Cargo.toml file to extract the crate name from the [package] section.
+    Returns the crate name if found, otherwise None.
+    """
+    in_package = False
+    try:
+        with open(cargo_toml_path, "r", encoding="utf-8") as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped.startswith("[package]"):
+                    in_package = True
+                elif stripped.startswith("[") and in_package:
+                    # Exiting the [package] section.
+                    break
+                elif in_package and stripped.startswith("name"):
+                    match = re.search(r'name\s*=\s*["\'](.+?)["\']', stripped)
+                    if match:
+                        crate_name = match.group(1)
+                        print(f"[TRACE] Crate name found in Cargo.toml: {crate_name}")
+                        return crate_name
+    except Exception as e:
+        print(f"[ERROR] Failed to parse Cargo.toml: {e}")
+    return None
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate a self-contained Python script that recreates a Rust crate with enhanced features."
+    )
+    parser.add_argument("source_folder", help="Path to the source folder (should be within or at the crate root).")
+    parser.add_argument("--src-only", action="store_true", help="Process only the 'src' folder inside the crate root.")
+    args = parser.parse_args()
+
+    # Resolve the absolute path of the provided source folder.
+    orig_source_folder = os.path.abspath(args.source_folder)
+    print(f"[TRACE] Source folder resolved to: {orig_source_folder}")
+
+    # Search upward for Cargo.toml from the provided folder.
+    cargo_toml_path = find_cargo_toml(orig_source_folder)
+    if cargo_toml_path:
+        # Use the directory containing Cargo.toml as the crate root.
+        crate_root = os.path.dirname(cargo_toml_path)
+        crate_name_from_toml = get_crate_name_from_cargo_toml(cargo_toml_path)
+        if crate_name_from_toml:
+            crate_name = crate_name_from_toml
+            print(f"[TRACE] Using crate name from Cargo.toml: {crate_name}")
+        else:
+            crate_name = os.path.basename(orig_source_folder.rstrip(os.sep))
+            print("[TRACE] Cargo.toml found but crate name could not be extracted; using fallback name.")
+    else:
+        crate_root = orig_source_folder
+        crate_name = os.path.basename(orig_source_folder.rstrip(os.sep))
+        print("[TRACE] No Cargo.toml found; using fallback crate name.")
+
+    # Determine the folder to gather files from.
+    if args.src_only:
+        print("[TRACE] --src-only flag is set; processing only the 'src' subfolder.")
+        source_folder = os.path.join(crate_root, "src")
+    else:
+        source_folder = crate_root
+
+    if not os.path.exists(source_folder):
+        print(f"[ERROR] Source folder '{source_folder}' does not exist.")
+        sys.exit(1)
+
+    # Gather files from the determined source folder.
+    files_dict = gather_files(source_folder)
+
+    # Generate the script content (this is the recreate script that will be copied to clipboard).
+    generated_script = generate_script(files_dict, crate_name)
+
+    # Create a timestamped output file name in the format: <crate_name>_recreate_YYMMDD_HHMM.py
+    timestamp = datetime.now().strftime("%y%m%d_%H%M")
+    output_file = f"{crate_name}_recreate_{timestamp}.py"
+    print(f"[TRACE] Writing generated script to: {output_file}")
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(generated_script)
+    
+    # Set the generated script to be executable.
+    try:
+        st = os.stat(output_file)
+        os.chmod(output_file, st.st_mode | stat.S_IEXEC)
+        print(f"[TRACE] Set executable permission for {output_file}.")
+    except Exception as e:
+        print(f"[ERROR] Failed to set executable permission for {output_file}: {e}")
+
+    print(f"[TRACE] Generated script saved to {output_file}.")
+
+    # Copy the generated recreate script's content to the clipboard.
+    # (This is the script that, when run, will recreate the crate.)
+    copy_to_clipboard(generated_script)
+    print("[TRACE] Generated script copied to clipboard.")
+
+if __name__ == "__main__":
+    main()
+
+the following is the output of my rust crate that I would like to do analysis on.
+
+== mkcmt_recreate_250310_2348.py
+
+
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+
+def copy_to_clipboard(text):
+    """
+    Copies the given text to the system clipboard.
+    Uses 'clip' on Windows and 'pbcopy' on macOS.
+    """
+    try:
+        if sys.platform.startswith('win'):
+            proc = subprocess.Popen(['clip'], stdin=subprocess.PIPE, close_fds=True)
+            proc.communicate(input=text.encode('utf-8'))
+        elif sys.platform == 'darwin':
+            proc = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE, close_fds=True)
+            proc.communicate(input=text.encode('utf-8'))
+        else:
+            print('[TRACE] Clipboard copy not supported on this platform.')
+    except Exception as e:
+        print(f'[ERROR] Failed to copy to clipboard: {e}')
+
+def copy_self_to_clipboard():
+    """
+    Reads its own source file and copies the content to the clipboard.
+    Provides detailed tracing for debugging.
+    """
+    try:
+        with open(__file__, 'r', encoding='utf-8') as f:
+            content = f.read()
+        copy_to_clipboard(content)
+        print('[TRACE] The script has been copied to the clipboard.')
+    except Exception as e:
+        print(f'[ERROR] Failed to copy self to clipboard: {e}')
+
+def create_crate():
+    """
+    Recreates the directory structure and files for the crate.
+    Provides detailed tracing for each step.
+    """
+    base_folder = os.path.join(os.getcwd(), 'mkcmt')
+    print(f'[TRACE] Creating base folder: {base_folder}')
+    os.makedirs(base_folder, exist_ok=True)
+    files = {
+        'Cargo.toml': '[package]\nname = "mkcmt"\nversion = "0.1.0"\nedition = "2024"\n\n[dependencies]\nclipboard = "0.5.0"\ngenai = "0.1.23"\ntokio = "1.44.0"\n',  # File: Cargo.toml
+        'output_cc_prompts.txt': '\n----------------------\nBased on the diff provided, here\'s an improved prompt for generating a conventional commit message that adheres to the Conventional Commits specification:\n\n---\n\n**Prompt for generating conventional commit message:**\n\n"Please create a conventional commit message based on the following changes in the files. Specifically, summarize the modifications made to each file, mention if it\'s a new addition, and include references to changed files as per Conventional Commits specifications. Here are the changes:\n\n1. **Files Added:**\n   - `.gitignore`: Added a new rule to ignore the \'target/\' directory.\n   - `Cargo.lock`: New lock file generated for dependencies.\n   - `Cargo.toml`: Created a new package definition and added dependencies for \'clipboard\', \'genai\', and \'tokio\'.\n   - `src/main.rs`: Implemented the main functionality to interact with clipboard and integrate with the genai chat client.\n\nPlease format the message in the conventional commits style."\n\n---\n\nThis prompt gives clear specifications and highlights the changes, ensuring the commit message generated is informative and relevant to the modifications made.\n\n\n----------------------\nHere\'s an improved prompt that focuses on generating a more structured and clear conventional commit message while following the Conventional Commits specifications:\n\n---\n\n**Prompt for Generating a Conventional Commit Message:**\n\n"Based on the following changes made to the codebase, please generate a concise and informative conventional commit message. Ensure that the message adheres to the Conventional Commits specification format, including the type of change (e.g., feat, fix), a brief description, and references to affected files as necessary. Here are the details of the modifications:\n\n1. **Type of Changes:**\n   - New Features: \n     - Introduced a new package definition in `Cargo.toml`, adding dependencies for \'clipboard\', \'genai\', and \'tokio\'.\n     - Implemented functionality in `src/main.rs` to interact with the clipboard and integrate with the genai chat client.\n   - Configuration:\n     - Updated `.gitignore` to include the \'target/\' directory to optimize version control.\n     - Generated a new `Cargo.lock` file for managing project dependencies.\n\n2. **Expected Format:**\n   - Begin with the change type (`feat`, `fix`, etc.), followed by a colon, and then a succinct description of what was accomplished.\n   - Optionally, include references to the files that were changed, if relevant.\n\nUse this information to craft a well-structured commit message."\n\n---\n\nThis enhanced prompt provides clear guidance on the type of changes and formatting expectations, leading to a better conventional commit message.\n\n\n----------------------\nCertainly! Here’s an enhanced prompt that provides clear instructions for generating a conventional commit message according to the Conventional Commits specifications:\n\n---\n\n**Enhanced Prompt for Generating a Conventional Commit Message:**\n\n"Using the changes outlined below, create a structured and informative conventional commit message that complies with the Conventional Commits specification. Be sure to identify the type of change (e.g., feat, fix), provide a clear and concise description of the changes, and mention any relevant files affected by the commit.\n\n### Changes Summary:\n\n1. **New Features:**\n   - Added a new package definition in `Cargo.toml`, incorporating dependencies for \'clipboard\', \'genai\', and \'tokio\'.\n   - Implemented functionality in `src/main.rs` for clipboard interactions and integration with the genai chat client.\n\n2. **Configuration Updates:**\n   - Modified `.gitignore` to include \'target/\' directory to refine version control practices.\n   - Created a new `Cargo.lock` file for improved dependency management.\n\n### Expected Commit Message Format:\n- Start with a change type: `feat`, `fix`, or other relevant types.\n- Follow with a concise description, starting with an imperative verb (e.g., "add", "update").\n- Optionally, include the affected files in parentheses for clarity.\n\nUse this guidance to draft a commit message that is clear, concise, and adheres to the Conventional Commits standard."\n\n---\n\nThis version offers structured guidance, emphasizing clarity and adherence to specified formats, facilitating the creation of a high-quality conventional commit message.\n\n\n----------------------\nHere\'s an improved prompt designed to help generate a clear and effective conventional commit message:\n\n---\n\n**Prompt for Generating a Conventional Commit Message:**\n\n"Based on the following changes, please construct a clear and structured conventional commit message that aligns with the Conventional Commits specification. Ensure to identify the type of change, provide a succinct description, and mention any relevant files affected by the commit.\n\n### Summary of Changes:\n\n1. **New Features:**\n   - Introduced a new package definition in `Cargo.toml`, including dependencies for \'clipboard\', \'genai\', and \'tokio\'.\n   - Added functionality in `src/main.rs` to handle clipboard interactions and integrate with the genai chat client.\n\n2. **Configuration Updates:**\n   - Updated `.gitignore` to include the \'target/\' directory for better version control.\n   - Generated a new `Cargo.lock` file to manage dependencies more effectively.\n\n### Guidelines for Commit Message:\n\n- Start with the type of change (e.g., `feat`, `fix`, `chore`, etc.).\n- Follow this with a brief description of what was accomplished in the change, using an imperative verb (e.g., "add", "update").\n- If applicable, mention the affected files in parentheses for better context.\n\nUsing this framework, please draft a conventional commit message that is informative, concise, and clear."\n\n---\n\nThis prompt emphasizes structured guidance and clarity, making it easier to generate a high-quality conventional commit message.\n\n\n----------------------\nHere\'s an improved version of your prompt to generate a clear and effective conventional commit message while aligning with the Conventional Commits specification:\n\n---\n\n**Prompt for Generating a Conventional Commit Message:**\n\n"Please create a clear and structured conventional commit message based on the following changes. Make sure to identify the type of change, offer a concise description, and if relevant, include affected files in parentheses. \n\n### Summary of Changes:\n\n1. **New Features:**\n   - Introduced a new package definition in `Cargo.toml` with new dependencies: \'clipboard\', \'genai\', and \'tokio\'.\n   - Enhanced functionality in `src/main.rs` to manage clipboard interactions and integrate with the genai chat client.\n\n2. **Configuration Updates:**\n   - Updated `.gitignore` to exclude the \'target/\' directory, improving version control practices.\n   - Generated a new `Cargo.lock` file to properly manage dependencies.\n\n### Guidelines for Commit Message:\n\n- Start with a commit type (e.g., `feat`, `fix`, `chore`, etc.).\n- Follow it with a short, imperative description of the changes made.\n- Optionally, mention affected files in parentheses for additional context.\n\nUsing this structured approach, please draft a conventional commit message that is informative, concise, and follows the Conventional Commits specification."\n\n---\n\nThis improved prompt maintains clarity while emphasizing structured guidance, making it easier to produce a high-quality conventional commit message.\n\n',  # File: output_cc_prompts.txt
+        'output_cc_suggestions.txt': 'feat: add initial, including Git diff handling/progressive prompting for commit message generation.\n\n- Implemented clipboard interaction and genai chat client integration in src/main.rs.\n- Added .gitignore to exclude target/ directory\n- Created new Cargo.lock for dependency management\n- Defined package in Cargo.toml and added clipboard, genai, and tokio dependencies\n- Implemented main interaction logic in src/main.rs for clipboard and genai chat integration\n',  # File: output_cc_suggestions.txt
+        'README.md': '\n# Rust GenAI-Powered Conventional Commit Generator\n\n## Overview\n\nThis tool generates concise or lengthy, Conventional Commit-compatible commit messages using GPT-4o-mini (ChatGPT), based on your Git diff outputs. It intelligently handles both staged and unstaged changes, progressively refining commit suggestions based on user feedback, and can copy the final commit message directly to your clipboard.\n\n## Features\n\n- **Intelligent Commit Message Generation:** Leverages AI to analyze Git diffs and generate clear, descriptive commit messages.\n- **Interactive Refinement:** If the initial suggestion isn\'t suitable, the tool progressively refines the prompt to generate better commit messages.\n- **Clipboard Integration:** Offers the convenience of copying commit messages directly to the clipboard.\n- **Detailed Logging:** Maintains logs of both generated commit messages and refined prompts for easy reference.\n\n## Installation\n\n### Prerequisites\n\n- Rust and Cargo installed\n- Access to the GPT-4o-mini model (requires an OpenAI API key)\n\n### Setup\n\n1. Clone the repository:\n\n```sh\ngit clone https://github.com/davehorner/mkcmt.git\ncd mkcmt\ncargo install --path .\n```\n\n\n2. **Set API Key**\n\nSet your OpenAI API key in the environment variable:\n\n```bash\nexport OPENAI_API_KEY="your-api-key-here"\n```\n\n\n## Usage\n\nrun mkcmt in a git folder with some changes.  follow the prompts.\n\n\n### Workflow:\n\n- The tool checks for both staged (`git diff --cached`) and unstaged (`git diff`) changes.\n- Prompts whether to combine staged and unstaged changes if both exist.\n- Queries ChatGPT for a suitable commit message based on the provided diff.\n- Presents the commit message and prompts for acceptance.\n  - If accepted, optionally copies it to the clipboard.\n  - If declined, GPT is used iteratively to refine the prompt until an acceptable commit message is produced.\n\n## Output Logs\n\nThe tool maintains two log files for transparency and auditing purposes: \n   \n- `cc` stands for conventional commit\n\n- `output_cc_suggestions.txt`\n  - Logs each generated commit message, clearly separated.\n\n- `output_cc_prompts.txt`\n  - Logs each refined prompt used for subsequent message generation.\n\nThe logs are continually appended with clear separators, facilitating easy review and continuous improvement.\n\n## Requirements\n\n- Rust\n- OPENAI_API_KEY key for GPT-4o-mini accessible via your environment.\n- git must be installed and accessible via command line.\n\n\n## Example\n\n```\n$ cargo run\nBoth staged and unstaged changes detected.\nInclude both staged and unstaged changes in commit message? (y/n): y\n\nQuerying ChatGPT for commit message...\n\nSuggested commit message:\nfeat: implement interactive AI-powered commit message generation tool\n\nAccept this commit message? (y/n): n\nRefining prompt for a better commit message...\n\nQuerying ChatGPT again with refined prompt...\n\nSuggested commit message:\nfeat: add interactive refinement for better commit message accuracy based on user feedback\n\nAccept this commit message? (y/n): y\n\nCopy commit message to clipboard? (y/n): y\nCommit message copied to clipboard.\n```\n\n## License\n\nThis project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.\n\n',  # File: README.md
+        'src/main.rs': 'use std::fs::OpenOptions;\nuse std::io::{self, Write};\nuse std::process::Command;\nuse genai::chat::{ChatMessage, ChatRequest};\nuse genai::Client;\nuse clipboard::{ClipboardContext, ClipboardProvider};\n\n#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n    let staged_diff_text = run_git_diff("--cached")?;\n    let unstaged_diff_text = run_git_diff("")?;\n\n    let diff_text = if staged_diff_text.is_empty() {\n        if unstaged_diff_text.is_empty() {\n            println!("No staged or unstaged changes detected. Exiting.");\n            return Ok(());\n        }\n        unstaged_diff_text\n    } else if !unstaged_diff_text.is_empty() {\n        println!("Both staged and unstaged changes detected.");\n        if confirm_user_input("Include both staged and unstaged changes in commit message? (y/n): ")? {\n            format!("{}\\n{}", staged_diff_text, unstaged_diff_text)\n        } else {\n            staged_diff_text\n        }\n    } else {\n        staged_diff_text\n    };\n\n    let original_diff_text = diff_text.clone();\n\n    let mut prompt = format!(\n        "Generate a conventional commit message referencing changed files:\\n\\n<GIT_DIFF>",\n    );\n\n    let model = "gpt-4o-mini";\n    let client = Client::default();\n\n    loop {\n        let actual_prompt = prompt.replace("<GIT_DIFF>", &original_diff_text);\n\n        let chat_req = ChatRequest::new(vec![\n            ChatMessage::system("Provide a concise conventional commit message without markdown formatting."),\n            ChatMessage::user(&actual_prompt),\n        ]);\n\n        println!("\\nQuerying ChatGPT for commit message...");\n        let chat_res = client.exec_chat(model, chat_req, None).await?;\n        let commit_message = chat_res.content_text_as_str().unwrap_or("No response.").replace(\'`\', "");\n\n        log_output("output_cc_suggestions.txt", &commit_message)?;\n\n        println!("\\nSuggested commit message:\\n{}", commit_message);\n\n        if confirm_user_input("\\nAccept this commit message? (y/n): ")? {\n            if confirm_user_input("\\nCopy commit message to clipboard? (y/n): ")? {\n                let mut clipboard: ClipboardContext = ClipboardProvider::new()?;\n                clipboard.set_contents(commit_message.to_owned())?;\n                println!("Commit message copied to clipboard.");\n            } else {\n                println!("Commit message not copied.");\n            }\n            break;\n        } else {\n            println!("Refining prompt for a better commit message...");\n            let refinement_req = ChatRequest::new(vec![\n                ChatMessage::system("Suggest an improved prompt to obtain a better conventional commit message following conventional commit specifications."),\n                ChatMessage::user(&actual_prompt),\n            ]);\n\n            let refinement_res = client.exec_chat(model, refinement_req, None).await?;\n            let refined_prompt_template = refinement_res.content_text_as_str().unwrap_or(&prompt).replace("<GIT_DIFF>", &original_diff_text);\n\n            log_output("output_cc_prompts.txt", &refined_prompt_template)?;\n\n            prompt = refinement_res.content_text_as_str().unwrap_or(&prompt).to_string();\n\n            println!("\\nRefined prompt used:\\n{}", prompt);\n        }\n    }\n\n    Ok(())\n}\n\nfn run_git_diff(args: &str) -> Result<String, Box<dyn std::error::Error>> {\n    let args_vec: Vec<&str> = if args.is_empty() {\n        vec!["diff"]\n    } else {\n        vec!["diff", args]\n    };\n    let output = Command::new("git").args(&args_vec).output()?;\n    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())\n}\n\nfn confirm_user_input(prompt: &str) -> Result<bool, Box<dyn std::error::Error>> {\n    print!("{}", prompt);\n    io::stdout().flush()?;\n    let mut input = String::new();\n    io::stdin().read_line(&mut input)?;\n    Ok(input.trim().eq_ignore_ascii_case("y"))\n}\n\nfn log_output(filename: &str, content: &str) -> Result<(), Box<dyn std::error::Error>> {\n    let mut file = OpenOptions::new().create(true).append(true).open(filename)?;\n    writeln!(file, "\\n----------------------\\n{}\\n", content)?;\n    Ok(())\n}\n\n',  # File: src/main.rs
+    }
+
+    for relative_path, content in files.items():
+        full_path = os.path.join(base_folder, relative_path)
+        directory = os.path.dirname(full_path)
+        if not os.path.exists(directory):
+            os.makedirs(directory, exist_ok=True)
+            print(f'[TRACE] Created directory: {directory}')
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print(f'[TRACE] Created file: {full_path}')
+
+if __name__ == '__main__':
+    create_crate()
+    # Uncomment the next line to enable self-copy functionality.
+    # copy_self_to_clipboard()
+    print('[TRACE] Crate creation complete.')
+
+=====
+
+I need to ready this for release on crates.io.  What things should I do that I haven't done already?
