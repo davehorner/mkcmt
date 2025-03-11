@@ -1,6 +1,6 @@
 [package]
 name = "mkcmt"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["David Horner"]
 description = "mkcmt is make commit.  Conventional Commit Generator"
 readme = "README.md"
