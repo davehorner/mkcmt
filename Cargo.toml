@@ -1,9 +1,83 @@
 [package]
 name = "mkcmt"
 version = "0.1.0"
+authors = ["David Horner"]
+description = "mkcmt is make commit.  Conventional Commit Generator"
+readme = "README.md"
+homepage = "https://github.com/davehorner/mkcmt"
+repository = "https://github.com/davehorner/mkcmt"
+documentation = "https://docs.rs/mkcmt"
+keywords = ["commit", "git", "ai", "conventional-commits"]
+categories = ["development-tools", "command-line-utilities"]
+license = "MIT OR Apache-2.0"
 edition = "2024"
 
+
 [dependencies]
-clipboard = "0.5.0"
-genai = "0.1.23"
-tokio = "1.44.0"
+clipboard = { version = "0.5.0", optional = true }
+genai = { version = "0.1.23", optional = true }
+arboard = { version = "2.0", optional = true } 
+
+[dependencies.tokio_plain]
+package = "tokio"
+version = "1.44.0"
+optional = true
+default-features = false
+
+[dependencies.tokio_rt]
+package = "tokio"
+version = "1.44.0"
+optional = true
+default-features = false
+features = ["rt", "macros"]
+
+
+[features]
+default = ["uses_clipboard", "uses_genai", "uses_tokio_rt"]
+uses_clipboard = ["clipboard"]
+uses_genai = ["genai"]
+uses_arboard = ["arboard"]
+uses_tokio_plain = ["tokio_plain"]
+uses_tokio_rt = ["tokio_rt"]
+
+# clipboard will be removed in next release.
+# + cargo audit
+#     Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+#       Loaded 742 security advisories (from /Users/dhorner/.cargo/advisory-db)
+#     Updating crates.io index
+#     Scanning Cargo.lock for vulnerabilities (203 crate dependencies)
+# Crate:     xcb
+# Version:   0.8.2
+# Title:     Multiple soundness issues
+# Date:      2021-02-04
+# ID:        RUSTSEC-2021-0019
+# URL:       https://rustsec.org/advisories/RUSTSEC-2021-0019
+# Solution:  Upgrade to >=1.0
+# Dependency tree:
+# xcb 0.8.2
+# └── x11-clipboard 0.3.3
+#     └── clipboard 0.5.0
+#         └── mkcmt 0.1.0
+#
+# Crate:     clipboard
+# Version:   0.5.0
+# Warning:   unmaintained
+# Title:     clipboard is Unmaintained
+# Date:      2022-06-25
+# ID:        RUSTSEC-2022-0056
+# URL:       https://rustsec.org/advisories/RUSTSEC-2022-0056
+# Dependency tree:
+# clipboard 0.5.0
+# └── mkcmt 0.1.0
+#
+# Crate:     xcb
+# Version:   0.8.2
+# Warning:   unsound
+# Title:     Soundness issue with base::Error
+# Date:      2020-12-10
+# ID:        RUSTSEC-2020-0097
+# URL:       https://rustsec.org/advisories/RUSTSEC-2020-0097
+# Severity:  5.5 (medium)
+#
+# error: 1 vulnerability found!
+# warning: 2 allowed warnings found
