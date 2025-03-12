@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/davehorner/mkcmt/compare/v0.2.0...v0.2.1) - 2025-03-12
+
+### Added
+
+feat(mode_current, mode_recovery, mode_softreset, tests): implement comprehensive branch management enhancements with soft reset (-s), current commit retrieval (-c), and advanced recovery mode integration
+
+- Introduced the -s flag to perform a soft reset on the current branch, preserving uncommitted changes.
+- Added the -c flag to retrieve and display the current last commit message for quick reference.
+- Enhanced recovery mode to seamlessly restore previous commit messages from HEAD@{1}.
+- Developed extensive integration tests to ensure robust functionality across all branch management modes.
+- Begin code for parsing commits and CHANGELOGs
+
+
 ## [0.2.0](https://github.com/davehorner/mkcmt/compare/v0.1.1...v0.2.0) - 2025-03-11
 
 ### Other
