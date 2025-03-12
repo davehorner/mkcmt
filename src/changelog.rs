@@ -12,14 +12,7 @@ pub const TYPES: &[&str] = &[
 ];
 
 /// Allowed scopes (e.g., modules or subsystems).
-pub const SCOPES: &[&str] = &[
-    "core",
-    "ui",
-    "api",
-    "build",
-    "docs",
-    "tests",
-];
+pub const SCOPES: &[&str] = &["core", "ui", "api", "build", "docs", "tests"];
 
 /// Marker that indicates a breaking change in the commit message footer.
 pub const BREAKING_CHANGE_MARKER: &str = "!";
@@ -53,4 +46,3 @@ mod tests {
         assert_eq!(changelog.breaking_marker, "!");
     }
 }
-
