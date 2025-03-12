@@ -67,7 +67,10 @@ fn confirm_user_input(prompt: &str) -> Result<bool, Box<dyn std::error::Error>> 
 }
 
 fn log_output(filename: &str, content: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = OpenOptions::new().create(true).append(true).open(filename)?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(filename)?;
     writeln!(file, "\n----------------------\n{}\n", content)?;
     Ok(())
 }
@@ -302,7 +305,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     chat_loop(diff_text)
 }
-
 
 // #![doc = include_str!("../README.md")]
 

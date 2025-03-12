@@ -13,6 +13,5 @@
 //!
 //! Use the modules provided to parse commit messages or retrieve changelog data.
 
-pub mod commit;
 pub mod changelog;
-
+pub mod commit;

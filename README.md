@@ -7,7 +7,7 @@
 
 <!-- Version notice -->
 <p style="font-style: italic; color: #ccc; margin-top: 0.5em;">
-  You are reading documentation version <span id="doc-version" style="color: white;">0.2.0</span>.
+  You are reading documentation version <span id="doc-version" style="color: white;">0.2.2</span>.
   If this does not match the version displayed above, then you're not reading the latest documentation!
 </p>
 
@@ -80,7 +80,7 @@ Options:
   - If declined, GPT is used iteratively to refine the prompt until an acceptable commit message is produced.
 
 _The iterative refinement and nice initial prompts are TBD (To Be Developed).  What you get now might not be as good as `giff diff --cached | (clip|pbcopy)` taken straight to consumer
-ChatGPT interface.  This is v0.2.1; expect simple._
+ChatGPT interface.  This is v0.2.2; expect simple._
 
 ## Output Logs
 
@@ -144,6 +144,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 <!-- Version notice -->
 <p style="font-style: italic; color: #ccc; margin-top: 0.5em;">
-  You are reading documentation version <span id="doc-version" style="color: white;">0.2.0</span>.
+  You are reading documentation version <span id="doc-version" style="color: white;">0.2.2</span>.
   If this does not match the version displayed above, then you're not reading the latest documentation!
 </p>
