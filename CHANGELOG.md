@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/davehorner/mkcmt/compare/v0.2.1...v0.2.2) - 2025-03-12
+
+docs(qc): update README.md addressing version inconsistencies and run HORNERs qc (fmt, fix, audit)
+
+- Updated the README.md to resolve version inconsistencies.
+- Executed HORNERs qc with fmt, fix, and audit options to ensure code quality.
+
 ## [0.2.1](https://github.com/davehorner/mkcmt/compare/v0.2.0...v0.2.1) - 2025-03-12
 
 ### Added
