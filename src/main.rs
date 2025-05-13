@@ -103,14 +103,25 @@ fn get_diff_text() -> Result<String, Box<dyn std::error::Error>> {
     Ok(diff_text)
 }
 
-// --- Chat Loop Implementations ---
+/// Checks if the required environment variable for a model is set and returns the active model.
+fn get_active_model() -> Option<&'static str> {
+    for (model, env_key) in mkcmt::providers::MODEL_AND_KEY_ENV_NAME_LIST {
+        if !env_key.is_empty() && std::env::var(env_key).is_ok() {
+            return Some(*model);
+        }
+    }
+    None
+}
 
 // Asynchronous chat loop when using tokio_rt and GenAI.
 #[cfg(all(feature = "uses_tokio_rt", feature = "uses_genai"))]
 async fn chat_loop(diff_text: String) -> Result<(), Box<dyn std::error::Error>> {
     let prompt_template =
         "Generate a conventional commit message referencing changed files:\n\n<GIT_DIFF>";
-    let model = "gpt-4o-mini";
+   
+       // Check for the active model based on environment variables
+    let model = get_active_model().unwrap_or(mkcmt::providers::MODEL_OPENAI);
+    println!("Using model: {}", model);
     let client = Client::default();
     let original_diff_text = diff_text.clone();
 
@@ -124,7 +135,7 @@ async fn chat_loop(diff_text: String) -> Result<(), Box<dyn std::error::Error>> 
             ChatMessage::user(&actual_prompt),
         ]);
 
-        println!("\nQuerying ChatGPT for commit message...");
+        println!("\nQuerying {} for commit message...", model);
         let chat_res = client.exec_chat(model, chat_req, None).await?;
         let commit_message = chat_res
             .content_text_as_str()
